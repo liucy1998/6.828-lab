@@ -27,7 +27,9 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "showmappings", "Display mapping table for address in a specified range", mon_showmappings},
-	{ "setmpp", "Set mapping permission", mon_setmpp}
+	{ "setmpp", "Set mapping permission", mon_setmpp},
+	{ "singlestep", "Single step current env", mon_singlestep},
+	{ "backtrace", "Trace back", mon_backtrace}
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -79,6 +81,12 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		cur_ebp = *(uint32_t *)(cur_ebp);
 	}
 	return 0;
+}
+
+int mon_singlestep(int argc, char **argv, struct Trapframe *tf){
+	// Set FLAG: TRAP_FLAG
+	tf->tf_eflags |= 0x100;
+	return -1;
 }
 
 static uint32_t

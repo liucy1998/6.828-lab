@@ -140,9 +140,7 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
-	cprintf("kern_pgdir = %p, p = %p\n", kern_pgdir, &kern_pgdir);
 	memset(kern_pgdir, 0, PGSIZE);
-	cprintf("kern_pgdir = %p\n", kern_pgdir);
 
 	//////////////////////////////////////////////////////////////////////
 	// Recursively insert PD in itself as a page table, to form
@@ -567,6 +565,25 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
 
+	if(ULIM < (uintptr_t)va+len){
+		user_mem_check_addr = (uintptr_t)va < ULIM ? ULIM : (uintptr_t)va;
+		return -E_FAULT;
+	}
+	uintptr_t v_st = ROUNDDOWN((uintptr_t)va, PGSIZE), 
+		v_ed = ROUNDUP((uintptr_t)va + len, PGSIZE);
+	for(uintptr_t v_now = v_st; v_now < v_ed; v_now += PGSIZE){
+		// check 
+		// i)	if v_now already mapped (pde, pte should exist)
+		// ii)	if v_now has the perm
+		// buggy version:
+		// pte_t *pp = pgdir_walk(kern_pgdir, (void *)v_now, 0);
+		// comment : NOT KERN_PGDIR!!!!!! USER PGDIR INSTEAD!!
+		pte_t *pp = pgdir_walk(env->env_pgdir, (void *)v_now, 0);
+		if((pp == NULL) || ((*pp & (perm|PTE_P)) != perm)){
+			user_mem_check_addr = v_now < (uintptr_t)va ? (uintptr_t)va : v_now;
+			return -E_FAULT;
+		}
+	}
 	return 0;
 }
 

@@ -20,10 +20,11 @@
  *   void NAME();
  * where NAME is the argument passed to TRAPHANDLER.
  */
-#define TRAPHANDLER(name, num)						\
+#define TRAPHANDLER(name, num, dpl)						\
 	.data;  									\
-	.long name;								\
 	.long num;								\
+	.long name;								\
+	.long dpl;								\
 	.text;											\
 	.globl name;		/* define global symbol for 'name' */	\
 	.type name, @function;	/* symbol type is function */		\
@@ -36,10 +37,11 @@
  * It pushes a 0 in place of the error code, so the trap frame has the same
  * format in either case.
  */
-#define TRAPHANDLER_NOEC(name, num)					\
+#define TRAPHANDLER_NOEC(name, num, dpl)					\
 	.data;  									\
-	.long name;								\
 	.long num;								\
+	.long name;								\
+	.long dpl;								\
 	.text;									\
 	.globl name;							\
 	.type name, @function;						\
@@ -57,24 +59,25 @@
 	.globl		trap_info
 	.p2align 		2
 trap_info:
-	TRAPHANDLER_NOEC(divide_error_handler, T_DIVIDE)	
-	TRAPHANDLER_NOEC(debug_exception_handler, T_DEBUG)
-	TRAPHANDLER_NOEC(non_maskable_interrupt_handler, T_NMI)
-	TRAPHANDLER_NOEC(breakpoint_handler, T_BRKPT)
-	TRAPHANDLER_NOEC(overflow_handler, T_OFLOW)
-	TRAPHANDLER_NOEC(bounds_check_handler, T_BOUND)
-	TRAPHANDLER_NOEC(invalid_opcode_handler, T_ILLOP)
-	TRAPHANDLER_NOEC(device_not_available_handler, T_DEVICE)
-	TRAPHANDLER(double_fault_handler, T_DBLFLT)
-	TRAPHANDLER(invalid_tss_handler, T_TSS)
-	TRAPHANDLER(segment_not_present_handler, T_SEGNP)
-	TRAPHANDLER(stack_exception_handler, T_STACK)
-	TRAPHANDLER(general_protection_fault_handler, T_GPFLT)
-	TRAPHANDLER(pagefault_handler, T_PGFLT)
-	TRAPHANDLER_NOEC(floating_point_error_handler, T_FPERR)
-	TRAPHANDLER(alignment_check_handler, T_ALIGN)
-	TRAPHANDLER_NOEC(machine_check_handler, T_MCHK)
-	TRAPHANDLER_NOEC(simd_floating_point_error_handler, T_SIMDERR)
+	TRAPHANDLER_NOEC(divide_error_handler, T_DIVIDE, 0)	
+	TRAPHANDLER_NOEC(debug_exception_handler, T_DEBUG, 3)
+	TRAPHANDLER_NOEC(non_maskable_interrupt_handler, T_NMI, 0)
+	TRAPHANDLER_NOEC(breakpoint_handler, T_BRKPT, 3)
+	TRAPHANDLER_NOEC(overflow_handler, T_OFLOW, 0)
+	TRAPHANDLER_NOEC(bounds_check_handler, T_BOUND, 0)
+	TRAPHANDLER_NOEC(invalid_opcode_handler, T_ILLOP, 0)
+	TRAPHANDLER_NOEC(device_not_available_handler, T_DEVICE, 0)
+	TRAPHANDLER(double_fault_handler, T_DBLFLT, 0)
+	TRAPHANDLER(invalid_tss_handler, T_TSS, 0)
+	TRAPHANDLER(segment_not_present_handler, T_SEGNP, 0)
+	TRAPHANDLER(stack_exception_handler, T_STACK, 0)
+	TRAPHANDLER(general_protection_fault_handler, T_GPFLT, 0)
+	TRAPHANDLER(pagefault_handler, T_PGFLT, 0)
+	TRAPHANDLER_NOEC(floating_point_error_handler, T_FPERR, 0)
+	TRAPHANDLER(alignment_check_handler, T_ALIGN, 0)
+	TRAPHANDLER_NOEC(machine_check_handler, T_MCHK, 0)
+	TRAPHANDLER_NOEC(simd_floating_point_error_handler, T_SIMDERR, 0)
+	TRAPHANDLER_NOEC(syscall_handler, T_SYSCALL, 3)
 /*
  * Lab 3: Your code here for _alltraps
  */
