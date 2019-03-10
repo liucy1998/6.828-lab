@@ -47,13 +47,13 @@ SECTIONS
 		*(.data)
 	}
 
-	PROVIDE(edata = .);
 
+	PROVIDE(edata = .);
 	.bss : {
 		*(.bss)
 	}
-
 	PROVIDE(end = .);
+
 
 	/DISCARD/ : {
 		*(.eh_frame .note.GNU-stack)
