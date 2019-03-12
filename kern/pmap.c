@@ -276,6 +276,15 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	uintptr_t cur_cpu_stacktop = KSTACKTOP;
+	for(int i = 0 ; i < NCPU; ++i, cur_cpu_stacktop-=(KSTKSIZE+KSTKGAP))
+		boot_map_region(
+			kern_pgdir, 
+			cur_cpu_stacktop - KSTKSIZE,
+			KSTKSIZE,
+			PADDR(&percpu_kstacks[i]),
+			PTE_W
+		);
 
 }
 
@@ -320,7 +329,8 @@ page_init(void)
 	for (i = 0; i < npages; i++) {
 		physaddr_t pi = (i << PGSHIFT); 
 		// Merge used interval [IOPHYSMEM, EXTPHYSMEM) & [EXTPHYSMEM,next_free_addr)
-		if((!pi) || (pi >= IOPHYSMEM && pi < next_free_addr))
+		// if((!pi) || (pi >= IOPHYSMEM && pi < next_free_addr))
+		if((!pi) || (pi >= MPENTRY_PADDR && pi < next_free_addr))
 			pages[i].pp_ref = 1;
 		else{
 			pages[i].pp_ref = 0;
@@ -526,10 +536,10 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
 	pte_t *pte = pgdir_walk(pgdir, va, 0);
-	if(pte == NULL || (void *)(*pte) == NULL)
-		return NULL;
 	if(pte_store != NULL)
 		*pte_store = pte;
+	if(pte == NULL || (void *)(*pte) == NULL)
+		return NULL;
 		// *pte_store = (pte_t *)*pte;
 	return pa2page(*pte);
 }
@@ -606,7 +616,14 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	// panic("mmio_map_region not implemented");
+	size_t aligned_size = ROUNDUP(size, PGSIZE);
+	uintptr_t pre_base = base;
+	base += aligned_size;
+	if(base >= MMIOLIM)
+		panic("MMIO overflow!\n");
+	boot_map_region(kern_pgdir, pre_base, aligned_size, pa, PTE_PCD|PTE_PWT|PTE_W);
+	return (void *)pre_base;
 }
 
 static uintptr_t user_mem_check_addr;

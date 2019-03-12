@@ -548,6 +548,7 @@ env_run(struct Env *e)
 	lcr3(PADDR(e->env_pgdir));
 	// This line should be in the last !!!
 	// Because it will not return !!!
+	unlock_kernel();
 	env_pop_tf(&e->env_tf);
 }
 
