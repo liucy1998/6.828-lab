@@ -382,12 +382,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
-	struct PageInfo *npi = page_alloc(false);
-	if(npi == NULL)
-		panic("load_icode: Can't alloc new page for program's initial stack.");
-	int pi_flag = page_insert(e->env_pgdir, npi, (void *)(USTACKTOP-PGSIZE), PTE_U|PTE_W);
-	if(pi_flag == -E_NO_MEM)
-		panic("load_icode: Can't insert new page for program's initial stack, no memory for new page entry.");
+	region_alloc(e, (void *)(USTACKTOP-PGSIZE), PGSIZE);
 	// switch back.
 	lcr3(PADDR(kern_pgdir));
 

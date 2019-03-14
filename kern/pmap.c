@@ -665,7 +665,8 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 		// pte_t *pp = pgdir_walk(kern_pgdir, (void *)v_now, 0);
 		// comment : NOT KERN_PGDIR!!!!!! USER PGDIR INSTEAD!!
 		pte_t *pp = pgdir_walk(env->env_pgdir, (void *)v_now, 0);
-		if((pp == NULL) || ((*pp & (perm|PTE_P)) != perm)){
+		perm |= PTE_P;
+		if((pp == NULL) || ((*pp & perm) != perm)){
 			user_mem_check_addr = v_now < (uintptr_t)va ? (uintptr_t)va : v_now;
 			return -E_FAULT;
 		}

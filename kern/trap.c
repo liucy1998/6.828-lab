@@ -240,7 +240,7 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 4: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
+	// print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
 		panic("unhandled trap in kernel");
 	else {
@@ -358,6 +358,26 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	void *utf_top = (void *)(((tf->tf_esp >= (UXSTACKTOP - PGSIZE)) && (tf->tf_esp < UXSTACKTOP)) ? 
+		// buggy: tf->tf_eip : UXSTACKTOP);
+		tf->tf_esp : UXSTACKTOP);
+	size_t utf_size = (((tf->tf_esp >= (UXSTACKTOP - PGSIZE)) && (tf->tf_esp < UXSTACKTOP)) ? 32 : 0) + sizeof(struct UTrapframe);
+	struct UTrapframe *utf = (struct UTrapframe *)((uintptr_t)utf_top - utf_size);
+	if(curenv->env_pgfault_upcall){
+		// check user exception stack
+		user_mem_assert(curenv, (void *)utf, utf_size, PTE_U | PTE_W);
+		utf->utf_eflags = tf->tf_eflags;	
+		utf->utf_eip = tf->tf_eip;
+		utf->utf_err = tf->tf_err;
+		utf->utf_regs = tf->tf_regs;
+		utf->utf_esp = tf->tf_esp;
+		// page fault addr
+		utf->utf_fault_va = fault_va;
+
+		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_esp = (uintptr_t)utf;
+		env_run(curenv);
+	}
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
