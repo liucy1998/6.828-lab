@@ -122,7 +122,8 @@ fork(void)
 	if(child_env == 0){
 		// now we are in child env
 		// set thisenv for further use
-		thisenv = envs + ENVX(child_env);
+		// buggy : thisenv = envs + ENVX(child_env));
+		thisenv = envs + ENVX(sys_getenvid());
 		return 0;
 	}
 	else if(child_env < 0)

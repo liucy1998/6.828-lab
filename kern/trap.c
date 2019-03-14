@@ -66,32 +66,48 @@ static const char *trapname(int trapno)
 }
 
 
-void divide_error_handler();
-void debug_exception_handler();
-void non_maskable_interrupt_handler();
-void breakpoint_handler();
-void overflow_handler();
-void bounds_check_handler();
-void invalid_opcode_handler();
-void device_not_available_handler();
-void double_fault_handler();
-void invalid_tss_handler();
-void segment_not_present_handler();
-void stack_exception_handler();
-void general_protection_fault_handler();
-void pagefault_handler();
-void floating_point_error_handler();
-void alignment_check_handler();
-void machine_check_handler();
-void simd_floating_point_error_handler();
+// void divide_error_handler();
+// void debug_exception_handler();
+// void non_maskable_interrupt_handler();
+// void breakpoint_handler();
+// void overflow_handler();
+// void bounds_check_handler();
+// void invalid_opcode_handler();
+// void device_not_available_handler();
+// void double_fault_handler();
+// void invalid_tss_handler();
+// void segment_not_present_handler();
+// void stack_exception_handler();
+// void general_protection_fault_handler();
+// void pagefault_handler();
+// void floating_point_error_handler();
+// void alignment_check_handler();
+// void machine_check_handler();
+// void simd_floating_point_error_handler();
+// void irq_0_handler();
+// void irq_1_handler();
+// void irq_2_handler();
+// void irq_3_handler();
+// void irq_4_handler();
+// void irq_5_handler();
+// void irq_6_handler();
+// void irq_7_handler();
+// void irq_8_handler();
+// void irq_9_handler();
+// void irq_10_handler();
+// void irq_11_handler();
+// void irq_12_handler();
+// void irq_13_handler();
+// void irq_14_handler();
+// void irq_15_handler();
 void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
 	// LAB 3: Your code here.
 	extern uint32_t trap_info[];
-	for(int i = 0; i < 19; ++i)
-		SETGATE(idt[trap_info[i*3]], 1, GD_KT, trap_info[i*3+1], trap_info[i*3+2]);
+	for(int i = 0; i < 35; ++i)
+		SETGATE(idt[trap_info[i*3]], 0, GD_KT, trap_info[i*3+1], trap_info[i*3+2]);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -223,6 +239,11 @@ trap_dispatch(struct Trapframe *tf)
 				tf->tf_regs.reg_edi,
 				tf->tf_regs.reg_esi
 			);
+			return;
+		case(IRQ_OFFSET+IRQ_TIMER):
+			// ack clock int
+			lapic_eoi();
+			sched_yield();
 			return;
 	}
 

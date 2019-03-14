@@ -124,6 +124,8 @@ env_init(void)
 		envs[i].env_id = 0;
 		if(i+1 < NENV)
 			envs[i].env_link = &envs[i+1];
+		else
+			envs[i].env_link = NULL;
 	}
 
 	// Per-CPU part of the initialization
@@ -260,6 +262,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
