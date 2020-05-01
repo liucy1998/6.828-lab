@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/error.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -407,3 +408,153 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+
+void
+fast_ipc_send_signal(struct Trapframe *tf)
+{
+	// The environment may have set DF and some versions
+	// of GCC rely on DF being clear
+	asm volatile("cld" ::: "cc");
+
+	// Halt the CPU if some other CPU has called panic()
+	extern char *panicstr;
+	if (panicstr)
+		asm volatile("hlt");
+
+	// Re-acqurie the big kernel lock if we were halted in
+	// sched_yield()
+	// if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+	// 	lock_kernel();
+	// Check that interrupts are disabled.  If this assertion
+	// fails, DO NOT be tempted to fix it by inserting a "cli" in
+	// the interrupt path.
+	assert(!(read_eflags() & FL_IF));
+
+	if ((tf->tf_cs & 3) == 3) {
+		// Trapped from user mode.
+		// Acquire the big kernel lock before doing any
+		// serious kernel work.
+		// LAB 4: Your code here.
+		lock_kernel();
+		assert(curenv);
+
+		// Garbage collect if current enviroment is a zombie
+		if (curenv->env_status == ENV_DYING) {
+			env_free(curenv);
+			curenv = NULL;
+			sched_yield();
+		}
+
+		// Copy trap frame (which is currently on the stack)
+		// into 'curenv->env_tf', so that running the environment
+		// will restart at the trap point.
+		curenv->env_tf = *tf;
+		// The trapframe on the stack should be ignored from here on.
+		tf = &curenv->env_tf;
+	}
+
+	// Record that tf is the last real trapframe so
+	// print_trapframe can print some additional information.
+	last_tf = tf;
+
+	struct Env *dst_e;
+	envid_t dst_envid = tf->tf_regs.reg_eax;
+	int val = tf->tf_regs.reg_edx;
+	int err = envid2env(dst_envid, &dst_e, 0);
+	int ret = 0;
+	if(err != 0) {
+		ret = err;
+	}
+	else if(dst_e->env_ipc_recving == 0) {
+		curenv->env_ipc_wait = dst_envid;
+		curenv->env_ipc_value = val;
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		// directly switch to the destination process if possible
+		if(dst_e->env_status == ENV_RUNNABLE) {
+			env_run(dst_e);
+		}
+		else {
+			sched_yield();
+		}
+	}
+	else {
+		dst_e->env_ipc_recving = 0;
+		dst_e->env_ipc_from = curenv->env_id;
+		dst_e->env_ipc_value = val;
+		dst_e->env_status = ENV_RUNNABLE;
+		dst_e->env_tf.tf_regs.reg_eax = 0;
+		// directly switch to the destination process
+		env_run(dst_e);
+	}
+	// TODO: Add send & receive feature
+}
+
+// TODO: Add trap entry & user library
+void
+fast_ipc_recv_signal(struct Trapframe *tf)
+{
+	// The environment may have set DF and some versions
+	// of GCC rely on DF being clear
+	asm volatile("cld" ::: "cc");
+
+	// Halt the CPU if some other CPU has called panic()
+	extern char *panicstr;
+	if (panicstr)
+		asm volatile("hlt");
+
+	// Re-acqurie the big kernel lock if we were halted in
+	// sched_yield()
+	if (xchg(&thiscpu->cpu_status, CPU_STARTED) == CPU_HALTED)
+		lock_kernel();
+	// Check that interrupts are disabled.  If this assertion
+	// fails, DO NOT be tempted to fix it by inserting a "cli" in
+	// the interrupt path.
+	assert(!(read_eflags() & FL_IF));
+
+	if ((tf->tf_cs & 3) == 3) {
+		// Trapped from user mode.
+		// Acquire the big kernel lock before doing any
+		// serious kernel work.
+		// LAB 4: Your code here.
+		lock_kernel();
+		assert(curenv);
+
+		// Garbage collect if current enviroment is a zombie
+		if (curenv->env_status == ENV_DYING) {
+			env_free(curenv);
+			curenv = NULL;
+			sched_yield();
+		}
+
+		// Copy trap frame (which is currently on the stack)
+		// into 'curenv->env_tf', so that running the environment
+		// will restart at the trap point.
+		curenv->env_tf = *tf;
+		// The trapframe on the stack should be ignored from here on.
+		tf = &curenv->env_tf;
+	}
+	// Record that tf is the last real trapframe so
+	// print_trapframe can print some additional information.
+	last_tf = tf;
+
+	envid_t cur_envid = curenv->env_id;
+	bool suc = 0;
+	// TODO: use queue to optimize
+	// find a sender waiting for this env
+	for(int i = 0; i < NENV; ++i){
+		if(envs[i].env_ipc_wait == cur_envid){
+			envs[i].env_ipc_wait = 0;
+			envs[i].env_status = ENV_RUNNABLE;
+			curenv->env_ipc_value = envs[i].env_ipc_value;	
+			curenv->env_ipc_from = envs[i].env_id;
+			tf->tf_regs.reg_eax = 0;
+			suc = 1;
+			break;
+		}
+	}
+	if(!suc) {
+		curenv->env_ipc_recving = 1;
+		curenv->env_status = ENV_NOT_RUNNABLE;
+	}
+	sched_yield();
+}

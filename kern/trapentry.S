@@ -52,6 +52,33 @@
 	pushl $(num);							\
 	jmp _alltraps						
 
+#define TRAPHANDLER_NOEC_FASTIPCSENDSIG(name, num, dpl)					\
+	.data;  									\
+	.long num;								\
+	.long name;								\
+	.long dpl;								\
+	.text;									\
+	.globl name;							\
+	.type name, @function;						\
+	.align 2;							\
+	name:								\
+	pushl $0;							\
+	pushl $(num);							\
+	jmp _fast_ipc_send_sig_trap						
+
+#define TRAPHANDLER_NOEC_FASTIPCRECVSIG(name, num, dpl)					\
+	.data;  									\
+	.long num;								\
+	.long name;								\
+	.long dpl;								\
+	.text;									\
+	.globl name;							\
+	.type name, @function;						\
+	.align 2;							\
+	name:								\
+	pushl $0;							\
+	pushl $(num);							\
+	jmp _fast_ipc_recv_sig_trap						
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
@@ -79,6 +106,8 @@ trap_info:
 	TRAPHANDLER_NOEC(machine_check_handler, T_MCHK, 0)
 	TRAPHANDLER_NOEC(simd_floating_point_error_handler, T_SIMDERR, 0)
 	TRAPHANDLER_NOEC(syscall_handler, T_SYSCALL, 3)
+	TRAPHANDLER_NOEC_FASTIPCSENDSIG(fastipcsendsig_handler, T_IPC_SEND_SIG, 3)
+	TRAPHANDLER_NOEC_FASTIPCRECVSIG(fastipcrecvsig_handler, T_IPC_RECV_SIG, 3)
 	TRAPHANDLER_NOEC(irq_0_handler,  IRQ_OFFSET + 0, 0);
 	TRAPHANDLER_NOEC(irq_1_handler,  IRQ_OFFSET + 1, 0);
 	TRAPHANDLER_NOEC(irq_2_handler,  IRQ_OFFSET + 2, 0);
@@ -115,3 +144,32 @@ _alltraps:
 
 	call trap
 	
+_fast_ipc_send_sig_trap:
+	// Compelete trapframe
+	pushl %ds 
+	pushl %es
+	// sub %esp, 0x20 // replace 'pushal' since we don't need general register value here
+	pushal
+	
+	mov $GD_KD, %bx
+	mov %bx, %ds
+	mov %bx, %es
+
+	pushl %esp
+
+	call fast_ipc_send_signal
+
+_fast_ipc_recv_sig_trap:
+	// Compelete trapframe
+	pushl %ds 
+	pushl %es
+	// sub %esp, 0x20 // replace 'pushal' since we don't need general register value here
+	pushal
+	
+	mov $GD_KD, %bx
+	mov %bx, %ds
+	mov %bx, %es
+
+	pushl %esp
+
+	call fast_ipc_recv_signal
