@@ -459,16 +459,24 @@ fast_ipc_send_signal(struct Trapframe *tf)
 
 	struct Env *dst_e;
 	envid_t dst_envid = tf->tf_regs.reg_eax;
+	bool send_recv = tf->tf_regs.reg_ecx;
 	int val = tf->tf_regs.reg_edx;
 	int err = envid2env(dst_envid, &dst_e, 0);
 	int ret = 0;
 	if(err != 0) {
 		ret = err;
 	}
-	else if(dst_e->env_ipc_recving == 0) {
+	// Notice that if dst env is perfoming send & recv but it has not send data,
+	// curenv should not send data to it, since we need to ensure send &
+	// recv in order
+	else if((dst_e->env_ipc_recving == 0) || 
+			(dst_e->env_ipc_recving == 1 && dst_e->env_ipc_wait != 0)) {  // send first, then recv
 		curenv->env_ipc_wait = dst_envid;
 		curenv->env_ipc_value = val;
 		curenv->env_status = ENV_NOT_RUNNABLE;
+		if(send_recv) {
+			curenv->env_ipc_recving = 1;
+		}
 		// directly switch to the destination process if possible
 		if(dst_e->env_status == ENV_RUNNABLE) {
 			env_run(dst_e);
@@ -483,8 +491,53 @@ fast_ipc_send_signal(struct Trapframe *tf)
 		dst_e->env_ipc_value = val;
 		dst_e->env_status = ENV_RUNNABLE;
 		dst_e->env_tf.tf_regs.reg_eax = 0;
+		// now perform receiving
+		if(send_recv) {
+			struct Env *sender = NULL;
+			envid_t cur_envid = curenv->env_id;
+			bool suc = 0;
+			// TODO: use queue to optimize
+			// find a sender waiting for this env
+			for(int i = 0; i < NENV; ++i){
+				if(envs[i].env_ipc_wait == cur_envid){
+					sender = &envs[i];
+					envs[i].env_ipc_wait = 0;
+					// if sender is performing send & recv, 
+					// its status cannot be runnable since it still needs
+					// to recv data
+					if(!envs[i].env_ipc_recving) {
+						envs[i].env_status = ENV_RUNNABLE;
+					}
+					curenv->env_ipc_value = envs[i].env_ipc_value;	
+					curenv->env_ipc_from = envs[i].env_id;
+					tf->tf_regs.reg_eax = 0;
+					suc = 1;
+					break;
+				}
+			}
+			if(!suc) {
+				// cannot run current env
+				curenv->env_ipc_recving = 1;
+				curenv->env_status = ENV_NOT_RUNNABLE;
+				sched_yield();
+			}
+			else {
+				// here sender might also perform send & receive
+				// so even curenv recv data from sender, sender 
+				// might not be not runnable
+				if(sender->env_status == ENV_RUNNABLE) {
+					env_run(sender);
+				}
+				else {
+					env_run(curenv);
+				}
+			}
+			// TODO: env_run here?
+		}
 		// directly switch to the destination process
-		env_run(dst_e);
+		else {
+			env_run(dst_e);
+		}
 	}
 	// TODO: Add send & receive feature
 }
@@ -544,7 +597,9 @@ fast_ipc_recv_signal(struct Trapframe *tf)
 	for(int i = 0; i < NENV; ++i){
 		if(envs[i].env_ipc_wait == cur_envid){
 			envs[i].env_ipc_wait = 0;
-			envs[i].env_status = ENV_RUNNABLE;
+			if(!envs[i].env_ipc_recving) {
+				envs[i].env_status = ENV_RUNNABLE;
+			}
 			curenv->env_ipc_value = envs[i].env_ipc_value;	
 			curenv->env_ipc_from = envs[i].env_id;
 			tf->tf_regs.reg_eax = 0;

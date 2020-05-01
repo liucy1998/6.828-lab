@@ -62,8 +62,10 @@ i386_init(void)
 	// Touch all you want.
 	// ENV_CREATE(user_faultalloc, ENV_TYPE_USER);
 	// ENV_CREATE(user_pingpong, ENV_TYPE_USER);
-	ENV_CREATE(user_bmipc, ENV_TYPE_USER);
+	// ENV_CREATE(user_bmipc, ENV_TYPE_USER);
 	// ENV_CREATE(user_bmipcfast, ENV_TYPE_USER);
+	ENV_CREATE(user_bmipcfastif, ENV_TYPE_USER);
+	// ENV_CREATE(user_bmipcbase, ENV_TYPE_USER);
 	// ENV_CREATE(user_yield, ENV_TYPE_USER);
 	// ENV_CREATE(user_yield, ENV_TYPE_USER);
 	// ENV_CREATE(user_yield, ENV_TYPE_USER);

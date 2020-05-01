@@ -52,13 +52,32 @@
 //     }
 //     return ret;
 // }
-int32_t fast_ipc_send_signal(envid_t to_env, int val){
+int32_t fast_ipc_send_recv_signal(envid_t to_env, int val, envid_t *from_env) {
     int32_t ret;
     asm volatile("int %1\n"
             : "=a" (ret)
             : "i" (T_IPC_SEND_SIG),
             "a" (to_env),
-            "d" (val)
+            "d" (val),
+            "c" (1)
+            : "cc", "memory");
+    if(ret < 0) {
+        *from_env = -1;
+        return ret;
+    }
+    else {
+        *from_env = thisenv->env_ipc_from;
+        return thisenv->env_ipc_value;
+    }
+}
+int32_t fast_ipc_send_signal(envid_t to_env, int val) {
+    int32_t ret;
+    asm volatile("int %1\n"
+            : "=a" (ret)
+            : "i" (T_IPC_SEND_SIG),
+            "a" (to_env),
+            "d" (val),
+            "c" (0)
             : "cc", "memory");
     return ret;
 }

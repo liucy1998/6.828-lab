@@ -1,7 +1,7 @@
 #include <inc/lib.h>
 #include <inc/x86.h>
 
-#define ROUND 10000
+#define ROUND 1000000
 void
 umain(int argc, char **argv)
 {
@@ -24,7 +24,7 @@ umain(int argc, char **argv)
 			if(who != 0) {
 				end_cycle = read_tsc();
 				cprintf("total cycles: %lld\n", end_cycle - start_cycle);
-				cprintf("cycles/IPC: %lld\n", (end_cycle - start_cycle)/(2*ROUND));
+				cprintf("cycles/IPC: %lld\n", (end_cycle - start_cycle)/(ROUND));
 			}
 			return;
 		}

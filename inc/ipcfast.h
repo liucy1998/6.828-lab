@@ -20,6 +20,7 @@ struct FastIPCMsg {
 // void ipc_send_fast(envid_t to_env, struct FastIPCMsg* src, int num);
 
 int32_t fast_ipc_send_signal(envid_t to_env, int val);
+int32_t fast_ipc_send_recv_signal(envid_t to_env, int val, envid_t *from_env);
 
 int32_t fast_ipc_recv_signal(envid_t *from_env);
 
